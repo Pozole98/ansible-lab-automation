@@ -1,0 +1,22 @@
+---
+- name: Mantenimiento Nocturno del Laboratorio Vasconcelos
+  hosts: laboratorio
+  become: true
+  tasks:
+    - name: 1. Actualizar repositorios y todos los paquetes (APT)
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+        autoclean: true
+
+    - name: 2. Actualizar paquetes Snap
+      ansible.builtin.command: snap refresh
+      failed_when: false
+
+    - name: 3. Apagar los equipos (EXCLUYENDO lab00 y lab12)
+      ansible.builtin.command: shutdown now
+      async: 1
+      poll: 0
+      failed_when: false
+      when: inventory_hostname not in ['lab00', 'lab12']

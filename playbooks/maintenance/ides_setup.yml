@@ -1,0 +1,38 @@
+---
+- name: Instalacion Masiva de Entornos de Desarrollo (IDEs)
+  hosts: laboratorio
+  become: true
+
+  tasks:
+    # 1. ACTUALIZAR Y PREPARAR EL TERRENO
+    - name: Instalar Java, Arduino y el motor de Snap
+      ansible.builtin.apt:
+        name:
+          - default-jdk # Requisito indispensable para NetBeans
+          - arduino # Versión de repositorios para evitar bloqueos USB
+          - snapd # Gestor de paquetes modernos
+        state: present
+        update_cache: true
+
+    # 2. INSTALACIÓN DE PYCHARM (Comunidad)
+    - name: Instalar PyCharm Community (Vía Snap)
+      ansible.builtin.command: snap install pycharm-community --classic
+      register: pycharm_result
+      # Esto evita que Ansible marque error si ya estaba instalado
+      changed_when: "'installed' in pycharm_result.stdout or 'actualizado' in pycharm_result.stdout"
+      failed_when:
+        - pycharm_result.rc != 0
+        - "'already installed' not in pycharm_result.stderr"
+
+    # 3. INSTALACIÓN DE NETBEANS
+    - name: Instalar Apache NetBeans (Vía Snap)
+      ansible.builtin.command: snap install netbeans --classic
+      register: netbeans_result
+      changed_when: "'installed' in netbeans_result.stdout or 'actualizado' in netbeans_result.stdout"
+      failed_when:
+        - netbeans_result.rc != 0
+        - "'already installed' not in netbeans_result.stderr"
+
+    - name: Confirmacion
+      ansible.builtin.debug:
+        msg: "¡IDEs instalados! Los alumnos ya pueden programar."

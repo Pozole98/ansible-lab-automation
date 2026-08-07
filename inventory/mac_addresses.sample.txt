@@ -1,0 +1,6 @@
+# Copia este archivo a mac_addresses.txt y reemplaza con las IPs y MACs reales de tu laboratorio.
+# Formato: IP MAC
+192.168.68.100 AA:BB:CC:DD:EE:00
+192.168.68.101 AA:BB:CC:DD:EE:01
+192.168.68.102 AA:BB:CC:DD:EE:02
+192.168.68.103 AA:BB:CC:DD:EE:03

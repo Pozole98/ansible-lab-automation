@@ -1,0 +1,29 @@
+---
+- name: Corregir permisos de escritorio para el perfil de alumnos
+  hosts: all
+  become: true # Necesitamos root para cambiar permisos del perfil de usuario
+
+  vars:
+    usuario_laboratorio: "alumno" # <--- CAMBIA ESTO por el usuario que usan los alumnos
+
+  tasks:
+    - name: 1. Asegurar la propiedad del directorio de configuraciones de usuario
+      ansible.builtin.file:
+        path: "/home/{{ usuario_laboratorio }}/.config"
+        owner: "{{ usuario_laboratorio }}"
+        group: "{{ usuario_laboratorio }}"
+        state: directory
+        recurse: true
+
+    - name: 2. Dar permisos de ejecucion a los manejadores de URL locales
+      ansible.builtin.file:
+        path: "/home/{{ usuario_laboratorio }}/.local/share/applications"
+        owner: "{{ usuario_laboratorio }}"
+        group: "{{ usuario_laboratorio }}"
+        state: directory
+        mode: "0755"
+        recurse: true
+      failed_when: false
+
+    - name: 3. Permitir que el usuario lea las aplicaciones del sistema de forma global
+      ansible.builtin.command: "update-desktop-database /usr/share/applications"

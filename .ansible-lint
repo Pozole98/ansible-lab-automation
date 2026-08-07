@@ -1,0 +1,10 @@
+---
+# Configuración del linter de Ansible
+skip_list:
+  # Permitimos variables globales sin prefijo de rol
+  - var-naming[no-role-prefix]
+  # Omitimos advertencias en playbooks legacy de mantenimiento
+  - command-instead-of-module
+  - risky-file-permissions
+  - no-changed-when
+  - yaml[line-length]

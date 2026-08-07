@@ -1,0 +1,32 @@
+---
+# ==========================================
+# PLAYBOOK PRINCIPAL DE APROVISIONAMIENTO
+# ==========================================
+# Este playbook inicializa los equipos desde cero, aplicando todos los roles
+# y dejando las máquinas listas para su uso por los alumnos.
+
+- name: Aprovisionamiento de Laboratorio Vasconcelos
+  hosts: laboratorio
+  become: true
+
+  roles:
+    # 1. Configuración del sistema base (usuarios, grupos, red, dependencias)
+    - role: base_system
+      tags: ['base', 'usuarios']
+
+    # 2. Configuración del entorno gráfico (fondos, autologin, paneles)
+    - role: desktop_env
+      tags: ['desktop', 'gui']
+
+    # 3. Instalación de aplicaciones (Veyon, IDEs)
+    - role: software_management
+      tags: ['software', 'apps']
+
+    # 4. Aplicación de políticas restrictivas de seguridad
+    - role: security_policies
+      tags: ['seguridad', 'restricciones']
+
+  post_tasks:
+    - name: Notificar finalización exitosa
+      ansible.builtin.debug:
+        msg: "El equipo {{ inventory_hostname }} ha sido aprovisionado correctamente y está listo para producción."

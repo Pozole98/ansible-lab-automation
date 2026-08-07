@@ -1,0 +1,11 @@
+---
+ansible_python_interpreter: /usr/bin/python3
+ansible_ssh_user: "vasconcelos{{ inventory_hostname }}"
+
+# El administrador del laboratorio usará estas credenciales para acceder a todos los equipos
+ansible_ssh_pass: "{{ vault_ansible_ssh_pass }}"
+ansible_become_pass: "{{ vault_ansible_become_pass }}"
+
+# Contraseña encriptada (Hash SHA-512) para los usuarios 'alumno'
+# NOTA: En Ansible Vault, esta variable se llamará `vault_password_hash`
+student_password_hash: "{{ vault_password_hash }}"

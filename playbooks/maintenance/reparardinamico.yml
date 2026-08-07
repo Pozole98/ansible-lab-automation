@@ -1,0 +1,50 @@
+---
+- name: Corregir permisos de inicio de sesion para usuarios dinamicos del laboratorio
+  hosts: all
+  become: true # Requerido para modificar carpetas home de usuarios
+
+  tasks:
+    - name: 1. Calcular dinamicamente el nombre del usuario basado en la IP
+      ansible.builtin.set_fact:
+        usuario_calculado: "alumno{{ (ansible_default_ipv4.address.split('.'))[-1][-2:] }}"
+
+    - name: 2. Mostrar en pantalla el usuario detectado para confirmacion
+      ansible.builtin.debug:
+        msg: "El host con IP {{ ansible_default_ipv4.address }} modificara al usuario: {{ usuario_calculado }}"
+
+    - name: 3. Asegurar propiedad y permisos del directorio .config
+      ansible.builtin.file:
+        path: "/home/{{ usuario_calculado }}/.config"
+        owner: "{{ usuario_calculado }}"
+        group: "alumnos" # <--- CORREGIDO: Usar el grupo global del laboratorio
+        state: directory
+        recurse: true
+
+    - name: 4. Asegurar propiedad y permisos del directorio .local
+      ansible.builtin.file:
+        path: "/home/{{ usuario_calculado }}/.local"
+        owner: "{{ usuario_calculado }}"
+        group: "alumnos" # <--- CORREGIDO: Usar el grupo global del laboratorio
+        state: directory
+        mode: "0755"
+        recurse: true
+
+    - name: 5. Crear o asegurar el archivo mimeapps.list correcto para el alumno
+      community.general.ini_file:
+        path: "/home/{{ usuario_calculado }}/.config/mimeapps.list"
+        section: Default Applications
+        option: "x-scheme-handler/vscode"
+        value: "code-url-handler.desktop"
+        owner: "{{ usuario_calculado }}"
+        group: "alumnos" # <--- CORREGIDO: Usar el grupo global del laboratorio
+        create: true
+
+    - name: 6. Registrar tambien el protocolo por si la app busca windsurf://
+      community.general.ini_file:
+        path: "/home/{{ usuario_calculado }}/.config/mimeapps.list"
+        section: Default Applications
+        option: "x-scheme-handler/windsurf"
+        value: "windsurf.desktop"
+        owner: "{{ usuario_calculado }}"
+        group: "alumnos" # <--- CORREGIDO: Usar el grupo global del laboratorio
+        create: true

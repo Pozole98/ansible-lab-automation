@@ -1,0 +1,11 @@
+---
+- name: Despliegue de OpenArena (Prueba de estrés de red y GPU)
+  hosts: lubuntu, edubuntu
+  become: true
+
+  tasks:
+    - name: Instalar OpenArena desde los repositorios oficiales
+      ansible.builtin.apt:
+        name: openarena
+        state: present
+        update_cache: true

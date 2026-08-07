@@ -1,0 +1,68 @@
+---
+# ==========================================
+# 1. DESPLIEGUE DE VEYON (MONITOREO DE AULA)
+# ==========================================
+- name: Copiar el paquete .deb de Veyon a las PCs
+  ansible.builtin.copy:
+    src: "veyon_4.10.1.0-ubuntu.24.04_amd64.deb" # Requiere archivo en directorio files/
+    dest: "/tmp/veyon_instalador.deb"
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Instalar Veyon y dependencias
+  ansible.builtin.apt:
+    deb: "/tmp/veyon_instalador.deb"
+    state: present
+    update_cache: true
+
+- name: Eliminar el archivo .deb temporal
+  ansible.builtin.file:
+    path: "/tmp/veyon_instalador.deb"
+    state: absent
+
+- name: Copiar la llave pública de Veyon a los equipos
+  ansible.builtin.copy:
+    src: "veyon_publica_profesor.pem" # Requiere archivo en directorio files/
+    dest: "/tmp/veyon_publica_profesor.pem"
+    mode: '0600'
+
+- name: Importar la llave pública al sistema de Veyon
+  ansible.builtin.command: veyon-cli authkeys import profesor/public "/tmp/veyon_publica_profesor.pem"
+  changed_when: true
+
+- name: Forzar a Veyon a usar Autenticación por archivo de llaves
+  ansible.builtin.command: veyon-cli config set Authentication/Method 1
+  changed_when: true
+
+- name: Limpiar el archivo de llave temporal
+  ansible.builtin.file:
+    path: "/tmp/veyon_publica_profesor.pem"
+    state: absent
+
+- name: Permitir tráfico entrante en el puerto 11100 (Veyon Server) en UFW
+  community.general.ufw:
+    rule: allow
+    port: '11100'
+    proto: tcp
+    state: enabled
+  failed_when: false
+
+- name: Asegurar que el servicio veyon esté en ejecución y habilitado
+  ansible.builtin.systemd:
+    name: veyon.service
+    enabled: true
+    state: restarted
+
+# ==========================================
+# 2. ENTORNOS DE DESARROLLO (IDEs)
+# ==========================================
+- name: Instalar Visual Studio Code y herramientas de desarrollo
+  ansible.builtin.apt:
+    name:
+      - git
+      - build-essential
+      - gcc
+      - code # Requiere tener el repositorio de microsoft configurado (opcional)
+    state: present
+  failed_when: false

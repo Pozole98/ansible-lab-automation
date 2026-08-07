@@ -1,0 +1,25 @@
+---
+# ==========================================
+# PLAYBOOK DE MANTENIMIENTO (RUTINARIO)
+# ==========================================
+# Este playbook está diseñado para ejecutarse de forma programada (ej. cron)
+# para mantener el laboratorio actualizado, limpio y libre de usuarios fantasmas.
+
+- name: Mantenimiento Rutinario del Laboratorio
+  hosts: laboratorio
+  become: true
+
+  tasks:
+    - name: Actualizar repositorios y paquetes (apt update & upgrade)
+      ansible.builtin.apt:
+        upgrade: dist
+        update_cache: true
+        autoremove: true
+        autoclean: true
+      tags: ['actualizacion']
+
+    # La limpieza de usuarios se hace ejecutando solo la etiqueta 'usuarios' del rol base_system
+    - name: Ejecutar limpieza de usuarios fantasmas
+      ansible.builtin.include_role:
+        name: base_system
+      tags: ['auditoria']

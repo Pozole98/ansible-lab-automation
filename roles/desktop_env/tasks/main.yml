@@ -1,0 +1,171 @@
+---
+- name: Obtener variables de usuario (usuario legítimo)
+  ansible.builtin.set_fact:
+    ip_sufijo: "{{ '%02d' | format(ansible_host.split('.')[-1] | int % 100) }}"
+  when: ip_sufijo is not defined
+
+- name: Definir variables del alumno
+  ansible.builtin.set_fact:
+    usuario_correcto: "alumno{{ ip_sufijo }}"
+    home_correcto: "/home/alumno{{ ip_sufijo }}"
+  when: usuario_correcto is not defined
+
+# ==========================================
+# 1. AUTO-LOGIN SDDM
+# ==========================================
+- name: Crear directorio de configuración de SDDM
+  ansible.builtin.file:
+    path: /etc/sddm.conf.d
+    state: directory
+    mode: '0755'
+
+- name: Configurar Auto-Login para el usuario en SDDM
+  ansible.builtin.copy:
+    dest: /etc/sddm.conf.d/autologin.conf
+    content: |
+      [Autologin]
+      User={{ usuario_correcto }}
+      Session={{ desktop_session | default('Lubuntu') }}
+      Relogin=false
+    owner: root
+    group: root
+    mode: '0644'
+
+# ==========================================
+# 2. ACCESOS DIRECTOS (SOLO LUBUNTU/LXQT)
+# ==========================================
+- name: Registrar Accesos Web (Teams, Office, OneDrive)
+  ansible.builtin.copy:
+    dest: "/usr/share/applications/{{ item.name }}.desktop"
+    content: |
+      [Desktop Entry]
+      Version=1.0
+      Type=Application
+      Name={{ item.title }}
+      Comment={{ item.comment }}
+      Exec=firefox "{{ item.url }}"
+      Icon=/usr/share/pixmaps/{{ item.icon }}
+      Terminal=false
+      StartupNotify=true
+      Categories=Network;WebBrowser;
+    mode: '0644'
+  loop:
+    - { name: 'Teams', title: 'Microsoft Teams', comment: 'Acceso Institucional', url: 'https://teams.microsoft.com', icon: 'ms-teams.png' }
+    - { name: 'Office365', title: 'Office 365', comment: 'Word, Excel, PowerPoint', url: 'https://www.office.com', icon: 'ms-office.png' }
+    - { name: 'OneDrive', title: 'OneDrive', comment: 'Nube Personal', url: 'https://onedrive.live.com', icon: 'ms-onedrive.png' }
+  when: desktop_session == 'Lubuntu'
+
+- name: Asegurar configuración de LXQt para el panel
+  ansible.builtin.file:
+    path: "{{ home_correcto }}/.config/lxqt"
+    state: directory
+    owner: "{{ usuario_correcto }}"
+    group: alumnos
+    mode: '0700'
+  when: desktop_session == 'Lubuntu'
+
+- name: Copiar plantilla de lxqt-panel.conf
+  ansible.builtin.copy:
+    src: /etc/xdg/lxqt/lxqt-panel.conf
+    dest: "{{ home_correcto }}/.config/lxqt/lxqt-panel.conf"
+    remote_src: true
+    owner: "{{ usuario_correcto }}"
+    group: alumnos
+    mode: '0600'
+    force: false
+  when: desktop_session == 'Lubuntu'
+
+- name: Configurar QuickLaunch en el panel de LXQt
+  community.general.ini_file:
+    path: "{{ home_correcto }}/.config/lxqt/lxqt-panel.conf"
+    section: quicklaunch
+    option: "{{ item.key }}"
+    value: "{{ item.value }}"
+    owner: "{{ usuario_correcto }}"
+    group: alumnos
+    mode: '0600'
+  loop:
+    - { key: 'apps\\size', value: '6' }
+    - { key: 'apps\\1\\desktop', value: '/usr/share/applications/pcmanfm-qt.desktop' }
+    - { key: 'apps\\2\\desktop', value: '/usr/share/applications/firefox.desktop' }
+    - { key: 'apps\\3\\desktop', value: '/usr/share/applications/qterminal.desktop' }
+    - { key: 'apps\\4\\desktop', value: '/usr/share/applications/Teams.desktop' }
+    - { key: 'apps\\5\\desktop', value: '/usr/share/applications/Office365.desktop' }
+    - { key: 'apps\\6\\desktop', value: '/usr/share/applications/OneDrive.desktop' }
+  failed_when: false
+  when: desktop_session == 'Lubuntu'
+
+# ==========================================
+# 3. FONDO DE PANTALLA
+# ==========================================
+- name: Crear directorio de sistema para fondos
+  ansible.builtin.file:
+    path: /usr/share/backgrounds/escuela
+    state: directory
+    mode: '0755'
+
+- name: Copiar la imagen corporativa
+  ansible.builtin.copy:
+    src: "fondo_ijova.png" # Requiere que la imagen esté en files/ del repositorio
+    dest: /usr/share/backgrounds/escuela/wallpaper_institucional.png
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Asegurar directorios de pcmanfm-qt del alumno
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ usuario_correcto }}"
+    group: alumnos
+    mode: '0700'
+  loop:
+    - "{{ home_correcto }}/.config"
+    - "{{ home_correcto }}/.config/pcmanfm-qt"
+    - "{{ home_correcto }}/.config/pcmanfm-qt/lxqt"
+    - "{{ home_correcto }}/.config/pcmanfm-qt/default"
+  when: desktop_session == 'Lubuntu'
+
+- name: Configurar Wallpaper en pcmanfm-qt (Desbloqueo previo)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "{{ usuario_correcto }}"
+    mode: '0644'
+  loop:
+    - "{{ home_correcto }}/.config/pcmanfm-qt/lxqt/settings.conf"
+    - "{{ home_correcto }}/.config/pcmanfm-qt/default/settings.conf"
+  failed_when: false
+  when: desktop_session == 'Lubuntu'
+
+- name: Aplicar configuración de fondo en pcmanfm-qt
+  community.general.ini_file:
+    path: "{{ item.0 }}"
+    section: Desktop
+    option: "{{ item.1.key }}"
+    value: "{{ item.1.val }}"
+    create: true
+    owner: "{{ usuario_correcto }}"
+    group: alumnos
+    mode: '0644'
+  loop: "{{ paths | product(options) | list }}"
+  vars:
+    paths:
+      - "{{ home_correcto }}/.config/pcmanfm-qt/lxqt/settings.conf"
+      - "{{ home_correcto }}/.config/pcmanfm-qt/default/settings.conf"
+    options:
+      - { key: 'Wallpaper', val: "/usr/share/backgrounds/escuela/wallpaper_institucional.png" }
+      - { key: 'WallpaperMode', val: 'stretch' }
+  failed_when: false
+  when: desktop_session == 'Lubuntu'
+
+- name: Bloquear archivos de configuración de pcmanfm-qt (Solo lectura)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: root
+    group: alumnos
+    mode: '0444'
+  loop:
+    - "{{ home_correcto }}/.config/pcmanfm-qt/lxqt/settings.conf"
+    - "{{ home_correcto }}/.config/pcmanfm-qt/default/settings.conf"
+  failed_when: false
+  when: desktop_session == 'Lubuntu'

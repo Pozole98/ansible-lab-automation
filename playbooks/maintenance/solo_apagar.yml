@@ -1,0 +1,11 @@
+---
+- name: Apagado Automático de Clases
+  hosts: laboratorio
+  become: true
+  tasks:
+    - name: Apagar equipo si no es servidor
+      ansible.builtin.command: shutdown now
+      async: 1
+      poll: 0
+      failed_when: false
+      when: inventory_hostname not in ['lab00', 'lab12']

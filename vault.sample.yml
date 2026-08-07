@@ -1,0 +1,9 @@
+---
+# ARCHIVO DE SECRETOS DE EJEMPLO
+# Copia este archivo a 'vault.yml' e ingresa tus contraseñas reales.
+# Luego encripta 'vault.yml' ejecutando: ansible-vault encrypt vault.yml
+vault_ansible_ssh_pass: "TuPasswordSSH"
+vault_ansible_become_pass: "TuPasswordSudo"
+
+# Hash SHA-512 de la contraseña de los estudiantes
+vault_password_hash: "$6$tuhashshaaqui"

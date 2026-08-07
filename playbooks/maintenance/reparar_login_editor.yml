@@ -1,0 +1,31 @@
+---
+- name: Reparar por completo el inicio de sesion en el laboratorio
+  hosts: all
+  become: true
+
+  tasks:
+    - name: 1. Asegurar que el acceso directo soporte URLs (%u)
+      ansible.builtin.replace:
+        path: /usr/share/applications/code.desktop
+        regexp: "Exec=/usr/share/code/code"
+        replace: "Exec=/usr/share/code/code %u"
+      failed_when: false
+
+    - name: 2. Si es Windsurf, asegurar tambien su acceso directo
+      ansible.builtin.replace:
+        path: /usr/share/applications/windsurf.desktop
+        regexp: "Exec=/usr/bin/windsurf"
+        replace: "Exec=/usr/bin/windsurf %u"
+      failed_when: false
+
+    - name: 3. Forzar el registro de protocolos a nivel sistema (MIME global)
+      ansible.builtin.blockinfile:
+        path: /usr/share/applications/defaults.list
+        create: true
+        block: |
+          x-scheme-handler/vscode=code-url-handler.desktop
+          x-scheme-handler/windsurf=windsurf.desktop
+          x-scheme-handler/vscode-insiders=code-insiders-url-handler.desktop
+
+    - name: 4. Actualizar la base de datos de escritorio de Lubuntu
+      ansible.builtin.command: update-desktop-database /usr/share/applications

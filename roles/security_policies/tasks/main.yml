@@ -1,0 +1,86 @@
+---
+# ==========================================
+# 1. POLÍTICAS DE FIREFOX SISTEMA
+# ==========================================
+- name: Crear directorio de políticas de Firefox
+  ansible.builtin.file:
+    path: /etc/firefox/policies
+    state: directory
+    mode: '0755'
+
+- name: Aplicar Políticas de Firefox (Evitar filtrado de claves, autocompletado y telemetría)
+  ansible.builtin.copy:
+    dest: /etc/firefox/policies/policies.json
+    content: |
+      {
+        "policies": {
+          "DisableAppUpdate": true,
+          "DisableTelemetry": true,
+          "DisableFirefoxStudies": true,
+          "DisablePocket": true,
+          "DisableFirefoxAccounts": true,
+          "DontCheckDefaultBrowser": true,
+          "OfferToSaveLogins": false,
+          "PasswordManagerEnabled": false,
+          "SanitizeOnShutdown": {
+            "Cache": true,
+            "Cookies": true,
+            "History": true,
+            "Sessions": true,
+            "SiteSettings": false,
+            "FormData": true,
+            "Downloads": true,
+            "Locked": true
+          },
+          "UserMessaging": {
+            "ExtensionRecommendations": false,
+            "SkipOnboarding": true
+          }
+        }
+      }
+    mode: '0644'
+
+# ==========================================
+# 2. RESTRICCIÓN DE APLICACIONES (TERMINAL/DISCOVER)
+# ==========================================
+- name: Asegurar que el soporte de ACL esté instalado
+  ansible.builtin.apt:
+    name: acl
+    state: present
+
+- name: Obtener usuario administrador (para excepciones de ACL)
+  ansible.builtin.set_fact:
+    admin_user: "{{ ansible_user }}"
+
+- name: Rastrear ejecutables de Terminal y Discover
+  ansible.builtin.find:
+    paths:
+      - /usr/bin
+      - /snap/bin
+      - /usr/share/applications
+    patterns:
+      - "qterminal*"
+      - "xterm*"
+      - "*discover*"
+      - "plasma-discover*"
+    file_type: any
+  register: archivos_bloquear
+
+- name: Dar permisos explícitos de ejecución al Administrador
+  ansible.posix.acl:
+    path: "{{ item.path }}"
+    entity: "{{ admin_user }}"
+    etype: user
+    permissions: "r-x"
+    state: present
+  loop: "{{ archivos_bloquear.files }}"
+  failed_when: false
+
+- name: Denegar acceso a otros usuarios (Alumnos) en aplicaciones del sistema
+  ansible.posix.acl:
+    path: "{{ item.path }}"
+    etype: other
+    permissions: "---"
+    state: present
+  loop: "{{ archivos_bloquear.files }}"
+  failed_when: false

@@ -1,0 +1,89 @@
+---
+# 1. DETERMINAR EL NOMBRE DEL USUARIO CORRECTO (alumnoXX)
+- name: Determinar los dos últimos dígitos de la IP del equipo
+  ansible.builtin.set_fact:
+    ip_sufijo: "{{ '%02d' | format(ansible_host.split('.')[-1] | int % 100) }}"
+
+- name: Definir el usuario alumno correcto y su ruta
+  ansible.builtin.set_fact:
+    usuario_correcto: "alumno{{ ip_sufijo }}"
+    home_correcto: "/home/alumno{{ ip_sufijo }}"
+
+- name: Mostrar el usuario legítimo calculado
+  ansible.builtin.debug:
+    msg: "El usuario legítimo para esta máquina (IP {{ ansible_host }}) debe ser: {{ usuario_correcto }}"
+
+# 2. AUDITAR Y LIMPIAR USUARIOS FANTASMA
+- name: Obtener base de datos de usuarios locales (passwd)
+  ansible.builtin.getent:
+    database: passwd
+
+- name: Filtrar cuentas locales que comiencen con 'alumno'
+  ansible.builtin.set_fact:
+    usuarios_alumno_existentes: "{{ getent_passwd.keys() | select('match', '^alumno') | list }}"
+
+- name: Identificar usuarios fantasma/impostores
+  ansible.builtin.set_fact:
+    usuarios_fantasma: "{{ usuarios_alumno_existentes | difference([usuario_correcto]) }}"
+
+- name: Eliminar usuarios fantasma y sus carpetas /home
+  ansible.builtin.user:
+    name: "{{ item }}"
+    state: absent
+    remove: true
+    force: true
+  loop: "{{ usuarios_fantasma }}"
+  when: usuarios_fantasma | length > 0
+
+# 3. GESTIÓN DEL USUARIO LEGÍTIMO
+- name: Asegurar la existencia del grupo alumnos
+  ansible.builtin.group:
+    name: alumnos
+    state: present
+
+- name: Crear o actualizar configuración del usuario legítimo
+  ansible.builtin.user:
+    name: "{{ usuario_correcto }}"
+    password: "{{ student_password_hash }}"
+    shell: /bin/bash
+    group: alumnos
+    groups: audio,video,plugdev,netdev,users,dialout,cdrom,dip
+    append: false # Remueve grupos de admin no deseados
+    create_home: true
+    state: present
+    comment: "Estudiante PC {{ ip_sufijo }}"
+
+- name: Asegurar que el alumno NO tenga permisos de administrador (Eliminar de sudo/root)
+  ansible.builtin.user:
+    name: "{{ usuario_correcto }}"
+    groups: sudo,adm,root
+    state: present
+    remove: true
+
+- name: Asegurar permisos correctos en el directorio home del alumno
+  ansible.builtin.file:
+    path: "{{ home_correcto }}"
+    state: directory
+    owner: "{{ usuario_correcto }}"
+    group: alumnos
+    mode: '0700'
+
+# 4. GESTIÓN SSH LLAVE MAESTRA
+- name: Instalar llave SSH pública del administrador en el usuario alumno
+  ansible.posix.authorized_key:
+    user: "{{ usuario_correcto }}"
+    state: present
+    key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+  failed_when: false
+
+# 5. DEPENDENCIAS DEL SISTEMA
+- name: Instalar paquetes base recomendados
+  ansible.builtin.apt:
+    name:
+      - python3
+      - python3-apt
+      - neofetch
+      - htop
+      - acl
+    state: present
+    update_cache: true

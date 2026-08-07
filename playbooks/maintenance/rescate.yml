@@ -1,0 +1,24 @@
+---
+- name: Extraccion de Emergencia Edubuntu
+  hosts: edubuntu
+  become: true
+  vars:
+    # Extrae el numero (ej. de "lab01" saca "01")
+    num: "{{ inventory_hostname | regex_replace('^lab', '') }}"
+    alumno_user: "alumno{{ num }}"
+
+  tasks:
+    - name: Comprimir carpeta del alumno (Excluyendo ocultos y snap)
+      ansible.builtin.command: >
+        tar --exclude='/home/{{ alumno_user }}/.*'  --exclude='/home/{{ alumno_user }}/snap'  -czf /tmp/respaldo_{{ inventory_hostname }}.tar.gz  /home/{{ alumno_user
+        }}
+    - name: Descargar el respaldo a la lab12
+      ansible.builtin.fetch:
+        src: /tmp/respaldo_{{ inventory_hostname }}.tar.gz
+        dest: /home/vasconceloslab12/Respaldos_Completos/
+        flat: true
+
+    - name: Limpiar el archivo temporal en la maquina remota
+      ansible.builtin.file:
+        path: /tmp/respaldo_{{ inventory_hostname }}.tar.gz
+        state: absent

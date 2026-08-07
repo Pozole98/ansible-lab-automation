@@ -1,0 +1,22 @@
+# Crontab Template for Orchestrator Node (lab12)
+# Reemplaza /RUTA/AL/REPO con la ruta absoluta donde clonaste ansible-lab-pro
+# Por ejemplo: /home/tuusuario/ansible-lab-pro
+
+# 1. Encender todo el laboratorio para clases (6:50 AM)
+# Lunes a Viernes
+50 6 * * 1-5 /RUTA/AL/REPO/scripts/cron/solo_encender.sh >> /tmp/ansible-lab-encendido.log 2>&1
+
+# 2. Apagar todo al terminar el turno (3:00 PM)
+# Lunes a Viernes
+5 15 * * 1-5 ansible-playbook -i /RUTA/AL/REPO/inventory/hosts.ini /RUTA/AL/REPO/playbooks/maintenance/solo_apagar.yml >> /tmp/ansible-lab-apagado.log 2>&1
+
+# 3. Orquestador Nocturno: Encender, Actualizar (APT/Snap) y Apagar (8:00 PM)
+# Todos los días
+0 20 * * * /RUTA/AL/REPO/scripts/cron/orquestador.sh >> /tmp/ansible-lab-mantenimiento.log 2>&1
+
+# (Opcional - Vacaciones) Vigilante: Re-encender PCs si se apagan en horario de clases
+#*/2 7-14 * * 1-5 /RUTA/AL/REPO/scripts/cron/vigilante.sh >> /dev/null 2>&1
+
+# 4. Guillotina Nocturna: Failsafe por si las actualizaciones se congelan (11:00 PM)
+# Todos los días
+0 23 * * * ansible-playbook -i /RUTA/AL/REPO/inventory/hosts.ini /RUTA/AL/REPO/playbooks/maintenance/solo_apagar.yml >> /tmp/ansible-lab-failsafe.log 2>&1

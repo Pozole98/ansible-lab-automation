@@ -1,0 +1,19 @@
+---
+- name: Reparar protocolo URL de VS Code en todo el laboratorio
+  hosts: all
+  become: false # Se ejecuta en el entorno de usuario, no como root
+
+  tasks:
+    - name: Asegurar que exista el directorio de configuracion de usuario
+      ansible.builtin.file:
+        path: "~/.config"
+        state: directory
+        mode: "0755"
+
+    - name: Registrar el protocolo vscode:// en mimeapps.list
+      community.general.ini_file:
+        path: "~/.config/mimeapps.list"
+        section: Default Applications
+        option: "x-scheme-handler/vscode"
+        value: "code-url-handler.desktop"
+        create: true
