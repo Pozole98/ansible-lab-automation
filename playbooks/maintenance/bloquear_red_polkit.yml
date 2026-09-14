@@ -1,0 +1,43 @@
+---
+- name: Bloqueo de controles de Red (Polkit) para usuarios sin privilegios
+  hosts: laboratorio
+  become: true
+
+  tasks:
+    - name: Asegurar directorio de reglas de Polkit
+      ansible.builtin.file:
+        path: /etc/polkit-1/rules.d
+        state: directory
+        owner: root
+        group: polkitd
+        mode: '0750'
+
+    - name: Desplegar regla Polkit para silenciar NetworkManager a usuarios no administradores
+      ansible.builtin.copy:
+        dest: /etc/polkit-1/rules.d/90-bloquear-red-alumnos.rules
+        content: |
+          /*
+           * Bloquea el acceso a la desconexion y modificacion de red
+           * para usuarios que no sean administradores (grupo sudo).
+           */
+          polkit.addRule(function(action, subject) {
+              if (action.id.indexOf("org.freedesktop.NetworkManager.") === 0) {
+                  if (action.id.match(/(network-control|enable-disable-network|enable-disable-wifi|settings\.modify)/)) {
+                      if (subject.isInGroup("sudo")) {
+                          return polkit.Result.YES;
+                      } else {
+                          return polkit.Result.NO;
+                      }
+                  }
+              }
+          });
+        owner: root
+        group: root
+        mode: '0644'
+      notify: Reiniciar Polkit
+
+  handlers:
+    - name: Reiniciar Polkit
+      ansible.builtin.systemd:
+        name: polkit
+        state: restarted

@@ -1,22 +1,30 @@
-# Crontab Template for Orchestrator Node (lab12)
-# Reemplaza /RUTA/AL/REPO con la ruta absoluta donde clonaste ansible-lab-pro
-# Por ejemplo: /home/tuusuario/ansible-lab-pro
+# ==============================================================================
+# CRONTAB MAESTRO - ORQUESTADOR DEL LABORATORIO (NODO LAB12)
+# ==============================================================================
+# Para desplegar en el nodo orquestador, ejecute:
+#   crontab -e
+# Y agregue las siguientes líneas ajustando la ruta hacia su repositorio local.
+#
+# Formato de tiempo:
+#   m h dom mon dow comando
+# ==============================================================================
 
-# 1. Encender todo el laboratorio para clases (6:50 AM)
-# Lunes a Viernes
-50 6 * * 1-5 /RUTA/AL/REPO/scripts/cron/solo_encender.sh >> /tmp/ansible-lab-encendido.log 2>&1
+# 1. Encendido Matutino para Clases (6:50 AM, Lunes a Viernes)
+# Despierta todo el laboratorio antes de la llegada de los estudiantes.
+50 6 * * 1-5 /home/vasconceloslab12/ansible-lab-automation/scripts/cron/solo_encender.sh
 
-# 2. Apagar todo al terminar el turno (3:00 PM)
-# Lunes a Viernes
-5 15 * * 1-5 ansible-playbook -i /RUTA/AL/REPO/inventory/hosts.ini /RUTA/AL/REPO/playbooks/maintenance/solo_apagar.yml >> /tmp/ansible-lab-apagado.log 2>&1
+# 2. Watchdog de Auto-Curación en Horario Escolar (Cada 2 minutos, de 7:00 AM a 2:59 PM, Lun-Vie)
+# Monitorea equipos con ping de 1s; si alguno se apagó o desconectó, le envía WoL dual de inmediato.
+*/2 7-14 * * 1-5 /home/vasconceloslab12/ansible-lab-automation/scripts/cron/vigilante.sh
 
-# 3. Orquestador Nocturno: Encender, Actualizar (APT/Snap) y Apagar (8:00 PM)
-# Todos los días
-0 20 * * * /RUTA/AL/REPO/scripts/cron/orquestador.sh >> /tmp/ansible-lab-mantenimiento.log 2>&1
+# 3. Apagado de Salida Escolar (3:05 PM, Lunes a Viernes)
+# Apaga automáticamente las PCs de los alumnos al terminar el turno lectivo vespertino.
+5 15 * * 1-5 ansible-playbook -i /home/vasconceloslab12/ansible-lab-automation/inventory/hosts.ini /home/vasconceloslab12/ansible-lab-automation/playbooks/maintenance/solo_apagar.yml
 
-# (Opcional - Vacaciones) Vigilante: Re-encender PCs si se apagan en horario de clases
-#*/2 7-14 * * 1-5 /RUTA/AL/REPO/scripts/cron/vigilante.sh >> /dev/null 2>&1
+# 4. Mantenimiento Nocturno Desatendido (8:00 PM, Diario)
+# Enciende el laboratorio vía WoL, espera estabilización (600s), ejecuta actualizaciones masivas (APT/Snap) y apaga clientes.
+0 20 * * * /home/vasconceloslab12/ansible-lab-automation/scripts/cron/orquestador.sh >> /home/vasconceloslab12/ansible-lab-automation/registro_mantenimiento.log 2>&1
 
-# 4. Guillotina Nocturna: Failsafe por si las actualizaciones se congelan (11:00 PM)
-# Todos los días
-0 23 * * * ansible-playbook -i /RUTA/AL/REPO/inventory/hosts.ini /RUTA/AL/REPO/playbooks/maintenance/solo_apagar.yml >> /tmp/ansible-lab-failsafe.log 2>&1
+# 5. Guillotina Nocturna de Failsafe (11:00 PM, Diario)
+# Fuerza el apagado de seguridad en caso de que alguna PC se haya congelado durante las actualizaciones.
+0 23 * * * /usr/bin/ansible-playbook -i /home/vasconceloslab12/ansible-lab-automation/inventory/hosts.ini /home/vasconceloslab12/ansible-lab-automation/playbooks/maintenance/solo_apagar.yml >> /home/vasconceloslab12/ansible-lab-automation/registro_emergencia.log 2>&1

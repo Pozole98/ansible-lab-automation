@@ -1,0 +1,62 @@
+---
+- name: Restringir apagado, reinicio y botones físicos exclusivamente al administrador
+  hosts: edubuntu,lubuntu
+  become: true
+
+  tasks:
+    # 1. POLKIT: REGLA DE SEGURIDAD PARA APAGADO / REINICIO / SUSPENSIÓN
+    - name: Asegurar directorio de reglas de Polkit
+      ansible.builtin.file:
+        path: /etc/polkit-1/rules.d
+        state: directory
+        owner: root
+        group: polkitd
+        mode: '0750'
+
+    - name: Desplegar regla de Polkit para restringir apagado solo a administradores
+      ansible.builtin.copy:
+        dest: /etc/polkit-1/rules.d/99-bloquear-apagado.rules
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          // Restriccion de apagado, reinicio, detencion y suspension solo para administradores
+          polkit.addRule(function(action, subject) {
+              if (action.id.indexOf("org.freedesktop.login1.power-off") === 0 ||
+                  action.id.indexOf("org.freedesktop.login1.reboot") === 0 ||
+                  action.id.indexOf("org.freedesktop.login1.halt") === 0 ||
+                  action.id.indexOf("org.freedesktop.login1.suspend") === 0 ||
+                  action.id.indexOf("org.freedesktop.login1.hibernate") === 0) {
+                  // Si el usuario NO pertenece al grupo de administradores (sudo)...
+                  if (!subject.isInGroup("sudo")) {
+                      return polkit.Result.AUTH_ADMIN;
+                  }
+              }
+          });
+
+    # 2. SYSTEMD-LOGIND: IGNORAR BOTONES FÍSICOS DEL GABINETE
+    - name: Asegurar directorio de configuración logind.conf.d
+      ansible.builtin.file:
+        path: /etc/systemd/logind.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Desplegar configuración para ignorar botón físico de apagado
+      ansible.builtin.copy:
+        dest: /etc/systemd/logind.conf.d/99-ignorar-botones.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Login]
+          HandlePowerKey=ignore
+          HandleSuspendKey=ignore
+          HandleHibernateKey=ignore
+      notify: Recargar systemd-logind
+
+  handlers:
+    - name: Recargar systemd-logind
+      ansible.builtin.command: systemctl kill --signal=HUP systemd-logind
+      changed_when: true
