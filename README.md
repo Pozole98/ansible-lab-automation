@@ -67,6 +67,7 @@ Durante la jornada de clases (`*/2 7-14 * * 1-5`), un script en segundo plano mo
 │   └── maintenance/               # Playbooks de tareas específicas del orquestador
 │       ├── bloquear_apagado_orquestador.yml # Despliegue de Polkit y logind anti-apagado
 │       ├── bloquear_red_polkit.yml          # Despliegue de Polkit anti-desconexión de red
+│       ├── instalar_codeblocks.yml          # Instalación de Code::Blocks, GCC, GDB y soporte C
 │       ├── mantenimiento.yml                # Actualización de APT/Snap y apagado nocturno
 │       ├── reparardinamico.yml              # Corrección dinámica de permisos por IP
 │       ├── reparar_login_editor.yml         # Registro de esquemas URI para VS Code/Windsurf
@@ -111,6 +112,11 @@ El archivo `vault.yml` está ignorado en `.gitignore` para evitar cualquier fuga
 ### Aprovisionamiento Completo del Aula
 ```bash
 ansible-playbook -i inventory/hosts.ini playbooks/site.yml --ask-vault-pass
+```
+
+### Instalar Code::Blocks y Cadena de Compilación C
+```bash
+ansible-playbook -i inventory/hosts.ini playbooks/maintenance/instalar_codeblocks.yml --ask-vault-pass
 ```
 
 ### Ejecutar Auditoría Rápida de Usuarios

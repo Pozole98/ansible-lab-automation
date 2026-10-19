@@ -1,0 +1,44 @@
+---
+# ==============================================================================
+# INSTALACIÓN MASIVA DE CODE::BLOCKS Y CADENA DE COMPILACIÓN EN C
+# ==============================================================================
+# Este playbook despliega el IDE Code::Blocks junto con el compilador GCC,
+# el depurador GDB, las librerías estándar de desarrollo C/C++ (build-essential),
+# el paquete de extensiones (codeblocks-contrib) y el emulador xterm requerido
+# para la ejecución de aplicaciones de consola interactivas.
+# ==============================================================================
+
+- name: Instalar Code::Blocks y entorno de desarrollo en C
+  hosts: laboratorio
+  become: true
+
+  tasks:
+    - name: Actualizar caché de repositorios APT
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      tags: ['codeblocks', 'c_dev']
+
+    - name: Instalar Code::Blocks, herramientas de compilación C y depurador
+      ansible.builtin.apt:
+        name:
+          - build-essential # gcc, g++, make, libc6-dev
+          - gdb # Depurador GNU para inspección paso a paso
+          - codeblocks # IDE principal
+          - codeblocks-contrib # Plugins: autocompletado, formateador de código, etc.
+          - xterm # Emulador de terminal por defecto para ejecución de consola C
+        state: present
+      tags: ['codeblocks', 'c_dev']
+
+    - name: Verificar instalación del compilador GCC
+      ansible.builtin.command: gcc --version
+      register: gcc_check
+      changed_when: false
+      tags: ['codeblocks', 'c_dev']
+
+    - name: Confirmar estado de la instalación
+      ansible.builtin.debug:
+        msg: >-
+          Code::Blocks y la cadena de herramientas C quedaron instalados exitosamente.
+          Versión de GCC detectada: {{ gcc_check.stdout_lines[0] | default('OK') }}.
+      tags: ['codeblocks', 'c_dev']
