@@ -33,7 +33,11 @@
 
 - name: Importar la llave pública al sistema de Veyon
   ansible.builtin.command: veyon-cli authkeys import profesor/public "/tmp/veyon_publica_profesor.pem"
-  changed_when: true
+  register: import_key_res
+  changed_when: import_key_res.rc == 0
+  failed_when:
+    - import_key_res.rc != 0
+    - "'already exist' not in import_key_res.stderr"
 
 - name: Forzar a Veyon a usar Autenticación por archivo de llaves
   ansible.builtin.command: veyon-cli config set Authentication/Method 1

@@ -24,6 +24,15 @@
       ansible.builtin.debug:
         msg: "Iniciando proceso en {{ inventory_hostname }}. SO actual: {{ ansible_distribution }} {{ ansible_distribution_version }}"
 
+    - name: Asegurar NOPASSWD para el usuario administrador en sudoers
+      ansible.builtin.copy:
+        dest: "/etc/sudoers.d/99-ansible-admin"
+        owner: root
+        group: root
+        mode: '0440'
+        content: |
+          {{ ansible_user }} ALL=(ALL) NOPASSWD: ALL
+
     - name: Asegurar que el sistema actual esté completamente actualizado (APT)
       ansible.builtin.apt:
         update_cache: true
@@ -92,7 +101,7 @@
 
     - name: Copiar instalador de Veyon para Ubuntu 26.04
       ansible.builtin.copy:
-        src: "{{ veyon_installer_deb }}"
+        src: "{{ playbook_dir }}/../../files/{{ veyon_installer_deb }}"
         dest: "/tmp/veyon_instalador_2604.deb"
         owner: root
         group: root
@@ -111,13 +120,17 @@
 
     - name: Copiar llave pública del profesor
       ansible.builtin.copy:
-        src: "veyon_publica_profesor.pem"
+        src: "{{ playbook_dir }}/../../files/veyon_publica_profesor.pem"
         dest: "/tmp/veyon_publica_profesor.pem"
         mode: '0600'
 
     - name: Importar llave pública del profesor al Veyon de 26.04
       ansible.builtin.command: veyon-cli authkeys import profesor/public "/tmp/veyon_publica_profesor.pem"
-      changed_when: true
+      register: import_key_res
+      changed_when: import_key_res.rc == 0
+      failed_when:
+        - import_key_res.rc != 0
+        - "'already exist' not in import_key_res.stderr"
 
     - name: Forzar autenticación por archivo de llaves en Veyon
       ansible.builtin.command: veyon-cli config set Authentication/Method 1
