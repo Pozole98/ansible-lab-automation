@@ -57,16 +57,26 @@ ansible-playbook -i inventory/hosts.ini playbooks/maintenance/actualizar_nodo_26
     -e "target_host=lab00" -e @vault.yml >> "${LOG_FILE}" 2>&1
 log "Estación docente lab00 finalizada con éxito."
 
-# 7. LOTE 5: SERVIDOR EDGE Y ORQUESTADOR (lab12)
-log "Fase 8: Iniciando actualización del Orquestador (lab12)..."
+# 7. APAGADO FINAL NOCTURNO DE FLOTA DE ALUMNOS Y DOCENTE
+log "Fase 8: Apagando estaciones de trabajo de los alumnos para ahorro nocturno..."
+ansible-playbook -i inventory/hosts.ini playbooks/maintenance/solo_apagar.yml -e @vault.yml >> "${LOG_FILE}" 2>&1 || true
+log "Flota de alumnos apagada correctamente."
+
+# 8. LOTE 5: SERVIDOR EDGE Y ORQUESTADOR (lab12)
+log "Fase 9: Iniciando actualización del Orquestador (lab12)..."
 ansible-playbook -i inventory/hosts.ini playbooks/maintenance/actualizar_nodo_26_04.yml \
     -e "target_host=lab12" -e @vault.yml >> "${LOG_FILE}" 2>&1
 log "Orquestador lab12 actualizado a Ubuntu 26.04 LTS."
 
-# 8. APAGADO FINAL NOCTURNO DE FLOTA
-log "Fase 9: Apagando estaciones de trabajo de los alumnos para ahorro nocturno..."
-ansible-playbook -i inventory/hosts.ini playbooks/maintenance/solo_apagar.yml -e @vault.yml >> "${LOG_FILE}" 2>&1 || true
+# 9. REAFIRMAR POLÍTICAS DE SEGURIDAD EN LAB12
+log "Fase 10: Verificando bloqueo de apagado y botones físicos en lab12..."
+ansible-playbook -i inventory/hosts.ini playbooks/maintenance/bloquear_apagado_orquestador.yml \
+    -e "target_host=lab12" -e @vault.yml >> "${LOG_FILE}" 2>&1 || true
 
 log "=========================================================================="
 log "MIGRACIÓN MASIVA COMPLETADA AL 100% EN TODO EL LABORATORIO"
 log "=========================================================================="
+
+log "Reiniciando servidor lab12 para cargar el nuevo kernel de Ubuntu 26.04 LTS..."
+sleep 10
+sudo systemctl reboot

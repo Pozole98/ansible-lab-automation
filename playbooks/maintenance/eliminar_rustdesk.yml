@@ -20,9 +20,7 @@
       failed_when: false
 
     - name: Matar cualquier proceso residual de rustdesk
-      ansible.builtin.command: pkill -f rustdesk
-      register: pkill_result
-      changed_when: pkill_result.rc == 0
+      ansible.builtin.command: killall -q -9 rustdesk
       failed_when: false
 
     - name: Purgar paquete RustDesk vía APT

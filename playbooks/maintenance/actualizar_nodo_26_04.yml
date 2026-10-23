@@ -30,8 +30,7 @@
         owner: root
         group: root
         mode: '0440'
-        content: |
-          {{ ansible_user }} ALL=(ALL) NOPASSWD: ALL
+        content: "{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL\n"
 
     - name: Asegurar que el sistema actual esté completamente actualizado (APT)
       ansible.builtin.apt:
@@ -88,10 +87,15 @@
       register: upgrade_result
       changed_when: true
       when: ansible_distribution_version is version(target_distro_version, '<')
-      notify: Reiniciar tras upgrade
 
-    - name: Ejecutar reinicio inmediato si la actualización aplicó cambios
-      ansible.builtin.meta: flush_handlers
+    - name: Reiniciar equipo tras actualización a Ubuntu 26.04 LTS (Nodos remotos)
+      ansible.builtin.reboot:
+        msg: "Reinicio programado tras actualización a Ubuntu 26.04 LTS"
+        reboot_timeout: 900
+        post_reboot_delay: 20
+      when:
+        - upgrade_result is changed
+        - inventory_hostname != 'lab12'
 
     # -------------------------------------------------------------------------
     # 3. INSTALACIÓN Y CONFIGURACIÓN DE VEYON 26.04
@@ -163,9 +167,4 @@
           Versión de Veyon activa: {{ veyon_ver.stdout | default('N/A') }}.
           Display Server verificado: X11.
 
-  handlers:
-    - name: Reiniciar tras upgrade
-      ansible.builtin.reboot:
-        msg: "Reinicio programado tras actualización a Ubuntu 26.04 LTS"
-        reboot_timeout: 900
-        post_reboot_delay: 20
+
