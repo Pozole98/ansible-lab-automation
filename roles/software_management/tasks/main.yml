@@ -2,9 +2,13 @@
 # ==========================================
 # 1. DESPLIEGUE DE VEYON (MONITOREO DE AULA)
 # ==========================================
+- name: Seleccionar instalador de Veyon según la versión de Ubuntu
+  ansible.builtin.set_fact:
+    veyon_installer_deb: "{{ 'veyon_4.11.4.0-ubuntu.26.04_amd64.deb' if ansible_distribution_version is version('26.04', '>=') else 'veyon_4.10.1.0-ubuntu.24.04_amd64.deb' }}"
+
 - name: Copiar el paquete .deb de Veyon a las PCs
   ansible.builtin.copy:
-    src: "veyon_4.10.1.0-ubuntu.24.04_amd64.deb" # Requiere archivo en directorio files/
+    src: "{{ veyon_installer_deb }}"
     dest: "/tmp/veyon_instalador.deb"
     owner: root
     group: root

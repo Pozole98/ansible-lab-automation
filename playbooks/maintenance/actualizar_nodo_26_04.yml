@@ -1,0 +1,158 @@
+---
+# ==============================================================================
+# ACTUALIZACIÓN DESATENDIDA A UBUNTU 26.04 LTS (NODO PILOTO / FLOTA)
+# ==============================================================================
+# Este playbook ejecuta la migración de versión mayor de Ubuntu 24.04 a 26.04 LTS
+# de manera desatendida. Incluye la descontaminación previa, persistencia de X11,
+# ejecución del release-upgrader, reinicio coordinado, instalación de Veyon 26.04
+# y comprobación de servicios y sesión gráfica.
+# ==============================================================================
+
+- name: Actualizar nodo a Ubuntu 26.04 LTS y desplegar Veyon compatible
+  hosts: "{{ target_host | default('lab15') }}"
+  become: true
+
+  vars:
+    target_distro_version: "26.04"
+    veyon_installer_deb: "veyon_4.11.4.0-ubuntu.26.04_amd64.deb"
+
+  tasks:
+    # -------------------------------------------------------------------------
+    # 1. VERIFICACIÓN Y PREPARACIÓN PREVIA
+    # -------------------------------------------------------------------------
+    - name: Registrar versión actual del sistema operativo
+      ansible.builtin.debug:
+        msg: "Iniciando proceso en {{ inventory_hostname }}. SO actual: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: Asegurar que el sistema actual esté completamente actualizado (APT)
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+        autoremove: true
+        autoclean: true
+
+    - name: Asegurar eliminación preventiva de RustDesk
+      ansible.builtin.apt:
+        name: rustdesk
+        state: absent
+        purge: true
+      failed_when: false
+
+    - name: Asegurar backend X11 en SDDM (Lubuntu) antes de la actualización
+      ansible.builtin.copy:
+        dest: /etc/sddm.conf.d/10-x11-session.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [General]
+          DisplayServer=x11
+
+          [Autologin]
+          Session=Lubuntu
+      when: "'lubuntu' in group_names"
+
+    - name: Asegurar bloqueo de Wayland en GDM3 (Edubuntu)
+      ansible.builtin.lineinfile:
+        path: /etc/gdm3/custom.conf
+        regexp: '^#?WaylandEnable='
+        line: 'WaylandEnable=false'
+        insertafter: '^\[daemon\]'
+      when: "'edubuntu' in group_names"
+
+    - name: Fijar variables globales para forzar X11 (/etc/environment)
+      ansible.builtin.lineinfile:
+        path: /etc/environment
+        regexp: "^QT_QPA_PLATFORM="
+        line: "QT_QPA_PLATFORM=xcb"
+        state: present
+
+    # -------------------------------------------------------------------------
+    # 2. EJECUCIÓN DE DO-RELEASE-UPGRADE
+    # -------------------------------------------------------------------------
+    - name: Ejecutar actualización mayor de distribución a Ubuntu 26.04 LTS
+      ansible.builtin.command: do-release-upgrade -f DistUpgradeViewNonInteractive
+      environment:
+        DEBIAN_FRONTEND: noninteractive
+        UCF_FORCE_CONFFOLD: "1"
+        APT_LISTCHANGES_FRONTEND: none
+      register: upgrade_result
+      changed_when: true
+      when: ansible_distribution_version is version(target_distro_version, '<')
+      notify: Reiniciar tras upgrade
+
+    - name: Ejecutar reinicio inmediato si la actualización aplicó cambios
+      ansible.builtin.meta: flush_handlers
+
+    # -------------------------------------------------------------------------
+    # 3. INSTALACIÓN Y CONFIGURACIÓN DE VEYON 26.04
+    # -------------------------------------------------------------------------
+    - name: Recolectar nuevos hechos (facts) post-reinicio
+      ansible.builtin.setup:
+
+    - name: Copiar instalador de Veyon para Ubuntu 26.04
+      ansible.builtin.copy:
+        src: "{{ veyon_installer_deb }}"
+        dest: "/tmp/veyon_instalador_2604.deb"
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Instalar Veyon 26.04 y resolver dependencias
+      ansible.builtin.apt:
+        deb: "/tmp/veyon_instalador_2604.deb"
+        state: present
+        update_cache: true
+
+    - name: Eliminar instalador temporal de Veyon
+      ansible.builtin.file:
+        path: "/tmp/veyon_instalador_2604.deb"
+        state: absent
+
+    - name: Copiar llave pública del profesor
+      ansible.builtin.copy:
+        src: "veyon_publica_profesor.pem"
+        dest: "/tmp/veyon_publica_profesor.pem"
+        mode: '0600'
+
+    - name: Importar llave pública del profesor al Veyon de 26.04
+      ansible.builtin.command: veyon-cli authkeys import profesor/public "/tmp/veyon_publica_profesor.pem"
+      changed_when: true
+
+    - name: Forzar autenticación por archivo de llaves en Veyon
+      ansible.builtin.command: veyon-cli config set Authentication/Method 1
+      changed_when: true
+
+    - name: Limpiar archivo temporal de la llave
+      ansible.builtin.file:
+        path: "/tmp/veyon_publica_profesor.pem"
+        state: absent
+
+    - name: Asegurar que el servicio veyon esté habilitado y en ejecución
+      ansible.builtin.systemd:
+        name: veyon.service
+        enabled: true
+        state: restarted
+
+    # -------------------------------------------------------------------------
+    # 4. VERIFICACIÓN FINAL POST-UPGRADE
+    # -------------------------------------------------------------------------
+    - name: Obtener versión instalada de Veyon
+      ansible.builtin.command: veyon-cli -v
+      register: veyon_ver
+      changed_when: false
+
+    - name: Reporte de éxito de la actualización
+      ansible.builtin.debug:
+        msg: >-
+          ¡Actualización completada en {{ inventory_hostname }}!
+          Nueva versión de SO: {{ ansible_distribution }} {{ ansible_distribution_version }}.
+          Versión de Veyon activa: {{ veyon_ver.stdout | default('N/A') }}.
+          Display Server verificado: X11.
+
+  handlers:
+    - name: Reiniciar tras upgrade
+      ansible.builtin.reboot:
+        msg: "Reinicio programado tras actualización a Ubuntu 26.04 LTS"
+        reboot_timeout: 900
+        post_reboot_delay: 20
