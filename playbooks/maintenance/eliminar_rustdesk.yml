@@ -1,0 +1,68 @@
+---
+# ==============================================================================
+# ELIMINACIÓN Y DESCONTAMINACIÓN LIMPIA DE RUSTDESK
+# ==============================================================================
+# Este playbook detiene el servicio RustDesk, purga el paquete del sistema,
+# elimina residuos de configuración en /root y perfiles de usuario, cierra
+# el puerto de firewall UFW (21118) y recarga los daemons correspondientes.
+# ==============================================================================
+
+- name: Eliminar RustDesk y limpiar residuos en el laboratorio
+  hosts: laboratorio
+  become: true
+
+  tasks:
+    - name: Detener y deshabilitar el servicio de RustDesk (si existe)
+      ansible.builtin.systemd:
+        name: rustdesk
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Matar cualquier proceso residual de rustdesk
+      ansible.builtin.command: pkill -f rustdesk
+      register: pkill_result
+      changed_when: pkill_result.rc == 0
+      failed_when: false
+
+    - name: Purgar paquete RustDesk vía APT
+      ansible.builtin.apt:
+        name: rustdesk
+        state: absent
+        purge: true
+      failed_when: false
+
+    - name: Eliminar directorios de configuración y ejecutables residuales
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /root/.config/rustdesk
+        - /etc/systemd/system/rustdesk.service
+        - /etc/systemd/system/multi-user.target.wants/rustdesk.service
+        - /usr/share/rustdesk
+        - /usr/share/applications/rustdesk.desktop
+        - /tmp/rustdesk.deb
+
+    - name: Eliminar reglas de firewall UFW asociadas a RustDesk (Puerto 21118)
+      community.general.ufw:
+        rule: allow
+        port: '21118'
+        proto: tcp
+        delete: true
+      failed_when: false
+
+    - name: Recargar el daemon de systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Confirmar estado final de RustDesk
+      ansible.builtin.command: which rustdesk
+      register: which_rustdesk
+      changed_when: false
+      failed_when: false
+
+    - name: Resumen de descontaminación
+      ansible.builtin.debug:
+        msg: >-
+          {{ 'ALERTA: RustDesk aún detectado en ' ~ which_rustdesk.stdout if which_rustdesk.rc == 0 else 'ÉXITO: RustDesk ha sido completamente erradicado de ' ~ inventory_hostname }}

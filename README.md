@@ -21,6 +21,7 @@ Para explorar a fondo la arquitectura, el diseño de seguridad y los flujos oper
 - 🛡️ **[Caso de Estudio: Hardening del Orquestador Edge (`lab12`)](docs/orquestador_edge_hardening.md):** Cómo se transformó una estación de trabajo usada por alumnos en un servidor de control permanente mediante un blindaje de 9 capas (BIOS, botón físico, `systemd-logind`, X11, DCONF y Polkit).
 - 🌙 **[Automatización, Auto-Curación y Ciclo de Vida Nocturno](docs/automatizacion_nocturna.md):** Explicación del ciclo diario en 5 fases, el watchdog de ping ICMP escolar, el protocolo dual Wake-on-LAN y análisis de telemetría de producción.
 - 🚀 **[Guía Paso a Paso de Aprovisionamiento](docs/guia_despliegue.md):** Procedimientos de arranque desde cero, inyección de llaves SSH y ejecución de playbooks.
+- 📦 **[Plan Maestro de Migración a Ubuntu 26.04 LTS](docs/plan_migracion_ubuntu_26_04.md):** Estrategia desatendida por lotes, erradicación de RustDesk y forzado de X11 para Veyon.
 - ⏱️ **[Plantilla de Tareas Programadas (Crontab)](docs/crontab.sample):** Crontab de producción verificado para programar las 5 etapas operativas.
 
 ---
@@ -56,7 +57,8 @@ Durante la jornada de clases (`*/2 7-14 * * 1-5`), un script en segundo plano mo
 │   ├── automatizacion_nocturna.md # Ciclo de 5 fases y watchdog de auto-curación
 │   ├── crontab.sample             # Tareas programadas del orquestador
 │   ├── guia_despliegue.md         # Guía de aprovisionamiento paso a paso
-│   └── orquestador_edge_hardening.md # Deep dive de blindaje del servidor lab12
+│   ├── orquestador_edge_hardening.md # Deep dive de blindaje del servidor lab12
+│   └── plan_migracion_ubuntu_26_04.md # Plan de migración a Ubuntu 26.04 LTS
 ├── inventory/
 │   ├── hosts.ini                  # Inventario categorizado por rol de escritorio (lubuntu/edubuntu)
 │   ├── mac_addresses.txt          # Mapeo de IPs y MACs para paquetes mágicos Wake-on-LAN
@@ -67,6 +69,8 @@ Durante la jornada de clases (`*/2 7-14 * * 1-5`), un script en segundo plano mo
 │   └── maintenance/               # Playbooks de tareas específicas del orquestador
 │       ├── bloquear_apagado_orquestador.yml # Despliegue de Polkit y logind anti-apagado
 │       ├── bloquear_red_polkit.yml          # Despliegue de Polkit anti-desconexión de red
+│       ├── eliminar_rustdesk.yml            # Purgado completo y cierre de puertos de RustDesk
+│       ├── forzar_x11.yml                   # Bloqueo de Wayland y persistencia de X11 para Veyon
 │       ├── instalar_codeblocks.yml          # Instalación de Code::Blocks, GCC, GDB y soporte C
 │       ├── mantenimiento.yml                # Actualización de APT/Snap y apagado nocturno
 │       ├── reparardinamico.yml              # Corrección dinámica de permisos por IP

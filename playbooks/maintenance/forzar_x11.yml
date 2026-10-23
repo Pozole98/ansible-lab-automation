@@ -1,0 +1,69 @@
+---
+# ==============================================================================
+# FORZADO Y PERSISTENCIA DE X11 / XORG (COMPATIBILIDAD VEYON)
+# ==============================================================================
+# Veyon requiere X11 para la captura de pantalla y el control remoto de aula.
+# Este playbook deshabilita Wayland en GDM3 (Edubuntu/GNOME) y asegura que
+# SDDM (Lubuntu/LXQt) y las variables globales de Qt/GTK utilicen exclusivamente
+# el servidor de despliegue X11.
+# ==============================================================================
+
+- name: Forzar y persistir servidor gráfico X11 en todo el laboratorio
+  hosts: laboratorio
+  become: true
+
+  tasks:
+    # 1. BLOQUEO DE WAYLAND EN EDUBUNTU (GNOME / GDM3)
+    - name: Deshabilitar Wayland en GDM3 para Edubuntu (lab12)
+      ansible.builtin.lineinfile:
+        path: /etc/gdm3/custom.conf
+        regexp: '^#?WaylandEnable='
+        line: 'WaylandEnable=false'
+        insertafter: '^\[daemon\]'
+      when: "'edubuntu' in group_names"
+
+    # 2. PERSISTENCIA DE SESIÓN X11 EN LUBUNTU (LXQt / SDDM)
+    - name: Asegurar directorio de configuración sddm.conf.d
+      ansible.builtin.file:
+        path: /etc/sddm.conf.d
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: "'lubuntu' in group_names"
+
+    - name: Fijar backend X11 y sesión Lubuntu en SDDM
+      ansible.builtin.copy:
+        dest: /etc/sddm.conf.d/10-x11-session.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [General]
+          DisplayServer=x11
+
+          [Autologin]
+          Session=Lubuntu
+      when: "'lubuntu' in group_names"
+
+    # 3. VARIABLES DE ENTORNO GLOBALES PARA APLICACIONES QT Y GTK
+    - name: Forzar backend xcb en Qt (/etc/environment)
+      ansible.builtin.lineinfile:
+        path: /etc/environment
+        regexp: '^QT_QPA_PLATFORM='
+        line: 'QT_QPA_PLATFORM=xcb'
+        state: present
+
+    - name: Forzar backend x11 en GTK (/etc/environment)
+      ansible.builtin.lineinfile:
+        path: /etc/environment
+        regexp: '^GDK_BACKEND='
+        line: 'GDK_BACKEND=x11'
+        state: present
+
+    # 4. CONFIRMACIÓN DEL TIPO DE SESIÓN
+    - name: Resumen de configuración X11
+      ansible.builtin.debug:
+        msg: >-
+          Servidor X11 forzado y persistido en {{ inventory_hostname }}.
+          Wayland deshabilitado a nivel gestor de ventanas y variables de entorno.
