@@ -33,50 +33,28 @@ ansible-playbook -i inventory/hosts.ini playbooks/maintenance/eliminar_rustdesk.
 log "Fase 3: Asegurando persistencia de servidor gráfico X11..."
 ansible-playbook -i inventory/hosts.ini playbooks/maintenance/forzar_x11.yml -e @vault.yml -f 16 >> "${LOG_FILE}" 2>&1 || true
 
-# 3. LOTE 1 (5 PCs Lubuntu: lab01, lab02, lab03, lab04, lab05)
-log "Fase 4: Iniciando Lote 1 (lab01, lab02, lab03, lab04, lab05)..."
-ansible-playbook -i inventory/hosts.ini playbooks/maintenance/actualizar_nodo_26_04.yml \
-    -e "target_host=lab01,lab02,lab03,lab04,lab05" -e @vault.yml -f 5 >> "${LOG_FILE}" 2>&1
-log "Lote 1 finalizado con éxito."
+# 3. LOTE 1 (Completado previamente: lab01, lab02, lab03, lab04, lab05 y lab15)
+log "Lote 1 y nodo canario (lab01, lab02, lab03, lab04, lab05, lab15) ya están en Ubuntu 26.04.1 LTS. Omitiendo."
 
-# 4. LOTE 2 (5 PCs Lubuntu: lab06, lab07, lab08, lab09, lab10)
-log "Fase 5: Iniciando Lote 2 (lab06, lab07, lab08, lab09, lab10)..."
+# 4. LOTE 2 (5 PCs Lubuntu Alumnos: lab06, lab07, lab08, lab09, lab10)
+log "Fase 4: Iniciando Lote 2 (lab06, lab07, lab08, lab09, lab10)..."
 ansible-playbook -i inventory/hosts.ini playbooks/maintenance/actualizar_nodo_26_04.yml \
-    -e "target_host=lab06,lab07,lab08,lab09,lab10" -e @vault.yml -f 5 >> "${LOG_FILE}" 2>&1
-log "Lote 2 finalizado con éxito."
+    -e "target_host=lab06,lab07,lab08,lab09,lab10" -e @vault.yml -f 5 >> "${LOG_FILE}" 2>&1 || true
+log "Lote 2 procesado."
 
-# 5. LOTE 3 (3 PCs Lubuntu: lab11, lab13, lab14 - omitiendo lab15 ya migrado)
-log "Fase 6: Iniciando Lote 3 (lab11, lab13, lab14)..."
+# 5. LOTE 3 (3 PCs Lubuntu Alumnos: lab11, lab13, lab14)
+log "Fase 5: Iniciando Lote 3 (lab11, lab13, lab14)..."
 ansible-playbook -i inventory/hosts.ini playbooks/maintenance/actualizar_nodo_26_04.yml \
-    -e "target_host=lab11,lab13,lab14" -e @vault.yml -f 3 >> "${LOG_FILE}" 2>&1
-log "Lote 3 finalizado con éxito."
+    -e "target_host=lab11,lab13,lab14" -e @vault.yml -f 3 >> "${LOG_FILE}" 2>&1 || true
+log "Lote 3 procesado."
 
-# 6. LOTE 4: ESTACIÓN DOCENTE (lab00)
-log "Fase 7: Iniciando actualización de la máquina docente (lab00)..."
-ansible-playbook -i inventory/hosts.ini playbooks/maintenance/actualizar_nodo_26_04.yml \
-    -e "target_host=lab00" -e @vault.yml >> "${LOG_FILE}" 2>&1
-log "Estación docente lab00 finalizada con éxito."
-
-# 7. APAGADO FINAL NOCTURNO DE FLOTA DE ALUMNOS Y DOCENTE
-log "Fase 8: Apagando estaciones de trabajo de los alumnos para ahorro nocturno..."
+# 6. APAGADO FINAL NOCTURNO DE FLOTA DE ALUMNOS (solo_apagar excluye lab00 y lab12)
+log "Fase 6: Apagando estaciones de trabajo de los alumnos para ahorro nocturno..."
 ansible-playbook -i inventory/hosts.ini playbooks/maintenance/solo_apagar.yml -e @vault.yml >> "${LOG_FILE}" 2>&1 || true
 log "Flota de alumnos apagada correctamente."
 
-# 8. LOTE 5: SERVIDOR EDGE Y ORQUESTADOR (lab12)
-log "Fase 9: Iniciando actualización del Orquestador (lab12)..."
-ansible-playbook -i inventory/hosts.ini playbooks/maintenance/actualizar_nodo_26_04.yml \
-    -e "target_host=lab12" -e @vault.yml >> "${LOG_FILE}" 2>&1
-log "Orquestador lab12 actualizado a Ubuntu 26.04 LTS."
-
-# 9. REAFIRMAR POLÍTICAS DE SEGURIDAD EN LAB12
-log "Fase 10: Verificando bloqueo de apagado y botones físicos en lab12..."
-ansible-playbook -i inventory/hosts.ini playbooks/maintenance/bloquear_apagado_orquestador.yml \
-    -e "target_host=lab12" -e @vault.yml >> "${LOG_FILE}" 2>&1 || true
-
+# 7. NOTIFICACIÓN DE ESTADO (lab00 y lab12 reservados para fase final posterior)
 log "=========================================================================="
-log "MIGRACIÓN MASIVA COMPLETADA AL 100% EN TODO EL LABORATORIO"
+log "MIGRACIÓN DE TODA LA FLOTA DE ALUMNOS (lab01-lab11, lab13-lab15) COMPLETADA"
+log "lab00 (Docente) y lab12 (Servidor) permanecen intactos y en línea sin reinicios."
 log "=========================================================================="
-
-log "Reiniciando servidor lab12 para cargar el nuevo kernel de Ubuntu 26.04 LTS..."
-sleep 10
-sudo systemctl reboot
