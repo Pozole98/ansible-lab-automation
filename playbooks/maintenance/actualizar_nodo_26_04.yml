@@ -108,11 +108,26 @@
         - inventory_hostname != 'lab12'
 
     # -------------------------------------------------------------------------
-    # 3. INSTALACIÓN Y CONFIGURACIÓN DE VEYON 26.04
+    # 3. CORRECCIÓN DE REGISTRO SCHEMA DE LIBREOFFICE
     # -------------------------------------------------------------------------
-    - name: Recolectar nuevos hechos (facts) post-reinicio
-      ansible.builtin.setup:
+    - name: Verificar si existe el esquema de configuración nuevo de LibreOffice
+      ansible.builtin.stat:
+        path: /etc/libreoffice/registry/main.xcd.ucf-dist
+      register: ucf_dist_stat
 
+    - name: Aplicar esquema compatible de LibreOffice para evitar crash de com::sun::star::uno::RuntimeException
+      ansible.builtin.copy:
+        src: /etc/libreoffice/registry/main.xcd.ucf-dist
+        dest: /etc/libreoffice/registry/main.xcd
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0644'
+      when: ucf_dist_stat.stat.exists
+
+    # -------------------------------------------------------------------------
+    # 4. INSTALACIÓN Y CONFIGURACIÓN DE VEYON 26.04
+    # -------------------------------------------------------------------------
     - name: Copiar instalador de Veyon para Ubuntu 26.04
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../../files/{{ veyon_installer_deb }}"
