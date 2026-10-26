@@ -32,6 +32,16 @@
         mode: '0440'
         content: "{{ ansible_user }} ALL=(ALL) NOPASSWD: ALL\n"
 
+    - name: Prevenir saturación de NVRAM UEFI en equipos HP desplegando wrapper seguro de grub-install
+      ansible.builtin.copy:
+        dest: /usr/local/sbin/grub-install
+        owner: root
+        group: root
+        mode: '0755'
+        content: |
+          #!/bin/sh
+          exec /usr/sbin/grub-install --no-nvram "$@"
+
     - name: Asegurar que el sistema actual esté completamente actualizado (APT)
       ansible.builtin.apt:
         update_cache: true
